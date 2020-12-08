@@ -16,23 +16,37 @@ namespace VTH.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration configuration;
+        private readonly string sqlConnectionString;
 
         public HomeController(ILogger<HomeController> logger, IConfiguration configuration)
         {
             _logger = logger;
             this.configuration = configuration;
+            this.sqlConnectionString = this.configuration.GetConnectionString("DefaultConnection");
         }
 
-        public IActionResult Index(int qno)
+        public async Task<IActionResult> Index()
         {
-            return View(qno);
+            int qno = 0;
+            if (this.User.Identity.IsAuthenticated)
+            {              
+                using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
+                {
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    var sqlcommand = connection.CreateCommand();
+                    sqlcommand.CommandText = $"GetUserQuestion";
+                    sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
+                    sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.Int).Value = this.User.Identity.Name;
+                    qno = (int)await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
+                }
+            }
+            return View(++qno);
         }
 
         public async Task<ActionResult> Privacy()
         {
-            string connectionString = this.configuration.GetConnectionString("DefaultConnection");
             IList<Models.EventLog> logs = new List<Models.EventLog>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
             {
                 await connection.OpenAsync().ConfigureAwait(false);
                 var sqlcommand = connection.CreateCommand();
@@ -93,9 +107,8 @@ namespace VTH.Controllers
         [HttpGet]
         public async Task<bool> ValidateAnswerAsync(int qno, string ans)
         {
-            string connectionString = this.configuration.GetConnectionString("DefaultConnection");
             string answer;
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
             {
                 await connection.OpenAsync().ConfigureAwait(false);
                 var sqlcommand = connection.CreateCommand();
@@ -120,9 +133,8 @@ namespace VTH.Controllers
         [HttpGet]
         public async Task<IList<Models.EventLog>> GetLeaderboard(int qno, string ans)
         {
-            string connectionString = this.configuration.GetConnectionString("DefaultConnection");
             IList<Models.EventLog> logs = new List<Models.EventLog>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
             {
                 await connection.OpenAsync().ConfigureAwait(false);
                 var sqlcommand = connection.CreateCommand();

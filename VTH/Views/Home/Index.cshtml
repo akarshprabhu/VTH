@@ -7,9 +7,13 @@
 @if (SignInManager.IsSignedIn(User))
 {
     <div class="text-center">
-        <h1 class="display-4">Welcome</h1>
-        <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-        <img src="@Url.Action("ValidateAnswer", "Home", new { qno = Model, ans = "akak" })">
+        <img class="img-fluid" src="@Url.Action("GetImage", "Home", new { id = 1 })">
+        <div class="form-group">
+            <div class="col-3 offset-4">
+                <input type="text" class="form-control" id="answer" placeholder="Answer...">
+                <button class="btn btn-primary m-2">Submit</button>
+            </div>
+        </div>
     </div>
 }
 else
