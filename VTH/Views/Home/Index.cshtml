@@ -7,7 +7,7 @@
 @if (SignInManager.IsSignedIn(User))
 {
     <div class="text-center">
-        <img class="img-fluid" src="@Url.Action("GetImage", "Home", new { id = 1 })">
+        <img class="img-fluid" src="@Url.Action("GetImage", "Home", new { id = Model })">
         <div class="form-group">
             <div class="col-3 offset-4">
                 <input type="text" class="form-control" id="answer" placeholder="Answer...">

@@ -36,8 +36,9 @@ namespace VTH.Controllers
                     var sqlcommand = connection.CreateCommand();
                     sqlcommand.CommandText = $"GetUserQuestion";
                     sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
-                    sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.Int).Value = this.User.Identity.Name;
-                    qno = (int)await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
+                    sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
+                    var result = await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
+                    qno = result != null ? (int)result : 0;
                 }
             }
             return View(++qno);
@@ -92,7 +93,6 @@ namespace VTH.Controllers
                 stream.Position = 0;
                 bytes = stream.ToArray();
             }
-            var name = this.User.Identity.Name;
             return File(bytes, "image/png", "image.png");
         }
 
