@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -29,19 +28,17 @@ namespace VTH.Controllers
         {
             int qno = 0;
             if (this.User.Identity.IsAuthenticated)
-            {              
-                using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
-                {
-                    await connection.OpenAsync().ConfigureAwait(false);
-                    var sqlcommand = connection.CreateCommand();
-                    sqlcommand.CommandText = $"GetUserQuestion";
-                    sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
-                    sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
-                    var result = await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
-                    qno = result != null ? (int)result : 0;
-                }
+            {
+                using SqlConnection connection = new SqlConnection(this.sqlConnectionString);
+                await connection.OpenAsync().ConfigureAwait(false);
+                using var sqlcommand = connection.CreateCommand();
+                sqlcommand.CommandText = $"GetUserQuestion";
+                sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
+                sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
+                var result = await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
+                qno = result != null ? (int)result : 1;
             }
-            return View(++qno);
+            return View(qno);
         }
 
         public async Task<ActionResult> Privacy()
@@ -50,7 +47,7 @@ namespace VTH.Controllers
             using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
             {
                 await connection.OpenAsync().ConfigureAwait(false);
-                var sqlcommand = connection.CreateCommand();
+                using var sqlcommand = connection.CreateCommand();
                 sqlcommand.CommandText = "GetLeaderboard";
                 sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
                 using (var reader = await sqlcommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -80,7 +77,7 @@ namespace VTH.Controllers
         }
 
         [HttpGet]
-        public ActionResult GetImage(int id)
+        public async Task<ActionResult> GetImageAsync(int id)
         {
             string connectionString = this.configuration.GetConnectionString("BlobConnection");
             BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
@@ -89,9 +86,19 @@ namespace VTH.Controllers
             byte[] bytes;
             using(MemoryStream stream = new MemoryStream())
             {
-                blobClient.DownloadTo(stream);
-                stream.Position = 0;
-                bytes = stream.ToArray();
+                if(await blobClient.ExistsAsync().ConfigureAwait(false))
+                {
+                    await blobClient.DownloadToAsync(stream).ConfigureAwait(false);
+                    stream.Position = 0;
+                    bytes = stream.ToArray();
+                }
+                else
+                {
+                    blobClient = containerClient.GetBlobClient("Game-over-2.png");
+                    await blobClient.DownloadToAsync(stream).ConfigureAwait(false);
+                    stream.Position = 0;
+                    bytes = stream.ToArray();
+                }
             }
             return File(bytes, "image/png", "image.png");
         }
@@ -104,30 +111,34 @@ namespace VTH.Controllers
             return name;
         }
 
-        [HttpGet]
-        public async Task<bool> ValidateAnswerAsync(int qno, string ans)
+        [HttpPost]
+        public async Task<bool> ValidateAnswer([FromBody]QnAEntity entity)
         {
             string answer;
             using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
             {
                 await connection.OpenAsync().ConfigureAwait(false);
-                var sqlcommand = connection.CreateCommand();
-                sqlcommand.CommandText = "GetAnswers";
-                sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
-                sqlcommand.Parameters.Add("@qno", System.Data.SqlDbType.Int).Value = qno;
-                answer = (string)await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
-                if(answer == ans)
+                using (SqlCommand sqlcommand = connection.CreateCommand())
                 {
-                    var newcommand = connection.CreateCommand();
+                    sqlcommand.CommandText = "GetAnswers";
+                    sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
+                    sqlcommand.Parameters.Add("@qno", System.Data.SqlDbType.Int).Value = entity.Qno;
+                    answer = (string)await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
+                }
+
+                if(answer == entity.Answer)
+                {
+                    using var newcommand = connection.CreateCommand();
                     newcommand.CommandText = "UpdateLeaderboard";
                     newcommand.CommandType = System.Data.CommandType.StoredProcedure;
-                    newcommand.Parameters.Add("@qno", System.Data.SqlDbType.Int).Value = qno;
+                    newcommand.Parameters.Add("@qno", System.Data.SqlDbType.Int).Value = ++entity.Qno;
                     newcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
-                    var res = await newcommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await newcommand.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
                 await connection.CloseAsync().ConfigureAwait(false);
             }
-            return answer == ans;
+            //return RedirectToAction("Index", "Home");
+            return answer == entity.Answer;
         }
 
         [HttpGet]
@@ -137,7 +148,7 @@ namespace VTH.Controllers
             using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
             {
                 await connection.OpenAsync().ConfigureAwait(false);
-                var sqlcommand = connection.CreateCommand();
+                using var sqlcommand = connection.CreateCommand();
                 sqlcommand.CommandText = "GetLeaderboard";
                 sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
                 using(var reader = await sqlcommand.ExecuteReaderAsync().ConfigureAwait(false))

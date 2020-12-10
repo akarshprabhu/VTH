@@ -1,20 +1,19 @@
-﻿@Model IList<VTH.Models.EventLog>
+﻿
+@{
+    ViewData["Title"] = "Leaderboard";
+}
+<h1>@ViewData["Title"]</h1>
 
-    @{
-        ViewData["Title"] = "Leaderboard";
-    }
-    <h1>@ViewData["Title"]</h1>
-
-    <table class="table table-bordered table-responsive table-hover">
+<table class="table table-striped">
+    <tr>
+        <th>Rank</th>
+        <th>User</th>
+    </tr>
+    @foreach (var d in Model)
+    {
         <tr>
-            <th>Rank</th>
-            <th>User</th>
+            <td>@d.Qno</td>
+            <td>@d.UserId</td>
         </tr>
-        @foreach (var d in Model)
-        {
-            <tr>
-                <td>@d.Qno</td>
-                <td>@d.UserId</td>
-            </tr>
-        }
-    </table>
+    }
+</table>
