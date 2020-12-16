@@ -7,10 +7,10 @@
 @if (SignInManager.IsSignedIn(User))
 {
     <div class="text-center">
-        <img class="img-fluid" src="@Url.Action("GetImage", "Home", new { id = Model })">
+        <img class="img-75" src="@Url.Action("GetImage", "Home", new { id = Model })">
         <div class="form-group">
             <div class="col-3 offset-4">
-                <form>
+                <form id="qnaForm" on>
                     <input type="text" class="form-control" id="answer" name="ans" placeholder="Answer...">
                     <button type="button" onclick="submitAnswer(@Model)" class="btn btn-primary m-2" id="submit">Submit</button>
                 </form>

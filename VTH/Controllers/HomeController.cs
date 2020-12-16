@@ -29,14 +29,18 @@ namespace VTH.Controllers
             int qno = 0;
             if (this.User.Identity.IsAuthenticated)
             {
-                using SqlConnection connection = new SqlConnection(this.sqlConnectionString);
-                await connection.OpenAsync().ConfigureAwait(false);
-                using var sqlcommand = connection.CreateCommand();
-                sqlcommand.CommandText = $"GetUserQuestion";
-                sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
-                sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
-                var result = await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
-                qno = result != null ? (int)result : 1;
+                using (SqlConnection connection = new SqlConnection(this.sqlConnectionString))
+                {
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    using (var sqlcommand = connection.CreateCommand())
+                    {
+                        sqlcommand.CommandText = $"GetUserQuestion";
+                        sqlcommand.CommandType = System.Data.CommandType.StoredProcedure;
+                        sqlcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
+                        var result = await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
+                        qno = result != null ? (int)result : 1;
+                    }
+                }
             }
             return View(qno);
         }
@@ -64,8 +68,6 @@ namespace VTH.Controllers
                         await reader.NextResultAsync().ConfigureAwait(false);
                     }
                 }
-
-                await connection.CloseAsync().ConfigureAwait(false);
             }
             return View(logs);
         }
@@ -94,10 +96,20 @@ namespace VTH.Controllers
                 }
                 else
                 {
-                    blobClient = containerClient.GetBlobClient("Game-over-2.png");
-                    await blobClient.DownloadToAsync(stream).ConfigureAwait(false);
-                    stream.Position = 0;
-                    bytes = stream.ToArray();
+                    blobClient = containerClient.GetBlobClient($"{id}.jpg");
+                    if (await blobClient.ExistsAsync().ConfigureAwait(false))
+                    {
+                        await blobClient.DownloadToAsync(stream).ConfigureAwait(false);
+                        stream.Position = 0;
+                        bytes = stream.ToArray();
+                    }
+                    else
+                    {
+                        blobClient = containerClient.GetBlobClient("Game-over-2.png");
+                        await blobClient.DownloadToAsync(stream).ConfigureAwait(false);
+                        stream.Position = 0;
+                        bytes = stream.ToArray();
+                    }
                 }
             }
             return File(bytes, "image/png", "image.png");
@@ -126,19 +138,19 @@ namespace VTH.Controllers
                     answer = (string)await sqlcommand.ExecuteScalarAsync().ConfigureAwait(false);
                 }
 
-                if(answer == entity.Answer)
+                if(string.Equals(answer, entity.Answer, System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    using var newcommand = connection.CreateCommand();
-                    newcommand.CommandText = "UpdateLeaderboard";
-                    newcommand.CommandType = System.Data.CommandType.StoredProcedure;
-                    newcommand.Parameters.Add("@qno", System.Data.SqlDbType.Int).Value = ++entity.Qno;
-                    newcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
-                    await newcommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    using (var newcommand = connection.CreateCommand())
+                    {
+                        newcommand.CommandText = "UpdateLeaderboard";
+                        newcommand.CommandType = System.Data.CommandType.StoredProcedure;
+                        newcommand.Parameters.Add("@qno", System.Data.SqlDbType.Int).Value = ++entity.Qno;
+                        newcommand.Parameters.Add("@userid", System.Data.SqlDbType.NVarChar).Value = this.User.Identity.Name;
+                        await newcommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
                 }
-                await connection.CloseAsync().ConfigureAwait(false);
             }
-            //return RedirectToAction("Index", "Home");
-            return answer == entity.Answer;
+            return string.Equals(answer, entity.Answer, System.StringComparison.InvariantCultureIgnoreCase);
         }
 
         [HttpGet]
@@ -163,9 +175,7 @@ namespace VTH.Controllers
                             logs.Add(log);
                         }
                     }
-                }
-                
-                await connection.CloseAsync().ConfigureAwait(false);
+                }                
             }
             return logs;
         }

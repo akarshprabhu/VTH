@@ -5,8 +5,10 @@
 
 function submitAnswer(questionNum) {
     let answer = ''
-    if ($('#answer'))
+    if ($('#answer')) {
         answer = $('#answer').val();
+        answer = answer.replace(/[^a-z0-9]/gi, '');
+    }
     $.ajax({
         type: "POST",
         url: '/Home/ValidateAnswer',
@@ -14,17 +16,26 @@ function submitAnswer(questionNum) {
         contentType: "application/json; charset=utf-8",
         dataType: "json",
         success: successFunc,
-        error: errorFunc
     });
 
     function successFunc(data, status) {
         if (!data) {
             alert('Wrong Answer. Try Again !')
         }
-        window.location = '/'
-        //return new JavaScriptResult() { Script = '/' };
-    }
-
-    function errorFunc(error) {
+        else {
+            window.location = '/'
+        }
     }
 };
+
+$(function () {
+    $("#qnaForm").submit(function () { return false; });
+});
+
+$('#answer').keypress(function (e) {
+    if (e.which == 13) {
+        $('#submit').click();
+    }
+});
+
+
